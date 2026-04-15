@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discovery | AI Music Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.8.7/wavesurfer.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+        <div class="logo-box">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </div>
+        <nav class="nav-menu">
+            <button title="Studio"><i class="fa-solid fa-music"></i></button>
+            <button title="Discovery"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button title="Profile"><i class="fa-regular fa-user"></i></button>
+        
+            <button id="logout-btn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+            <button id="theme-toggle" title="Toggle Dark Mode"><i class="fa-solid fa-moon"></i></button>
+        </nav>
+        </aside>
+
+        <main class="content">
+            <header class="header">
+                <h1>Discovery Hub</h1>
+                <p>Find music by humming or searching lyrics</p>
+            </header>
+
+            <div class="discovery-grid">
+                <section class="discovery-card">
+                    <h3>Hum to Search</h3>
+                    <div class="hum-action">
+
+                        <div class="record-circle">
+                            <i class="fa-solid fa-record-vinyl"></i>
+                        </div>
+
+                    </div>
+                </section>
+
+                <section class="discovery-card">
+                    <h3>Lyric Search</h3>
+                    <div class="search-box">
+                        <input type="text" id="lyric-input" placeholder="Enter lyrics you remember...">
+                        <button class="btn-search"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                    </div>
+                    <p class="search-hint">Try: "take me to the stars" or "dancing in the moonlight"</p>
+                </section>
+            </div>
+
+            <section class="results-container" style="flex-shrink:0;">
+                <div class="results-placeholder" id="start-searching-msg">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <h3>Start Searching</h3>
+                    <p>Use hum search or lyric search to discover music</p>
+                </div>
+
+                <div class="search-results-list hidden" id="results-list" style="overflow:visible;">
+                    <h3>Search Results</h3>
+                    <div class="track-item" onclick="playTrack('Summer Vibes')">
+                        <div class="track-art"><i class="fa-solid fa-music"></i></div>
+                        <div class="track-details">
+                            <strong>Summer Vibes</strong>
+                            <span class="track-meta">AI Artist 1 • Pop</span>
+                            <span class="track-desc">3:24</span>
+                        </div>
+                        <div class="track-actions">
+                            <button title="Play" class="track-action-btn"><i class="fa-solid fa-play"></i></button>
+                            <button title="Download" class="track-action-btn"><i class="fa-solid fa-download"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="player-bar" id="global-player">
+            <div class="now-playing">
+                <div class="player-art">AI Art</div>
+                <div class="player-meta">
+                    <strong id="playing-title">Select a track</strong>
+                    <span id="playing-artist">AI Music Studio</span>
+                </div>
+            </div>
+
+            <div class="player-visualizer">
+                <div class="waveform-mock"></div>
+            </div>
+
+            <div class="player-controls">
+                <div class="main-controls">
+                    <button><i class="fa-solid fa-backward-step"></i></button>
+                    <button class="play-pause"><i class="fa-solid fa-play"></i></button>
+                    <button><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+                <div class="progress-container">
+                    <span id="current-time">0:00</span>
+                    <input type="range" class="progress-slider" value="0">
+                    <span id="total-time">0:00</span>
+                </div>
+            </div>
+
+            <div class="volume-controls">
+                <i class="fa-solid fa-volume-high"></i>
+                <input type="range" class="volume-slider" min="0" max="150" value="100">
+            </div>
+        </footer>
+    </div>
+<script src="/static/script.js"></script>
+<script>
+// MutationObserver — only reformats OLD-style items (with lone ▶ button)
+// Items built by the updated showResults() already have YouTube/Spotify buttons — skip those
+const resultsList = document.getElementById('results-list');
+
+const observer = new MutationObserver(() => {
+    const items = resultsList.querySelectorAll('.track-item');
+    items.forEach(item => {
+        if (item.dataset.reformatted) return;
+
+        // If item already has YouTube/Spotify buttons, it was built by showResults() — skip
+        if (item.querySelector('[title="Search on YouTube"]') || 
+            item.querySelector('.fa-youtube') ||
+            item.querySelector('.fa-spotify')) {
+            item.dataset.reformatted = 'true';
+            return;
+        }
+
+        item.dataset.reformatted = 'true';
+
+        const artEl     = item.querySelector('.track-art');
+        const detailsEl = item.querySelector('.track-details');
+        const strong    = detailsEl?.querySelector('strong');
+        const spans     = detailsEl?.querySelectorAll('span');
+
+        const title    = strong?.textContent || '';
+        const metaText = spans?.[0]?.textContent || '';
+        const descText = spans?.[1]?.textContent || '';
+
+        if (artEl) {
+            artEl.innerHTML = '<i class="fa-solid fa-music"></i>';
+            artEl.style.cssText = 'width:52px;height:52px;min-width:52px;background:linear-gradient(135deg,#00d9ff,#00ff8c);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.1rem;';
+        }
+
+        if (detailsEl) {
+            detailsEl.style.cssText = 'flex:1;min-width:0;overflow:hidden;';
+            detailsEl.innerHTML = `
+                <strong style="display:block;font-size:0.95rem;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</strong>
+                ${metaText ? `<span style="display:block;font-size:0.8rem;color:#888;margin-bottom:2px;">${metaText}</span>` : ''}
+                ${descText ? `<span style="display:block;font-size:0.75rem;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${descText}</span>` : ''}
+            `;
+        }
+
+        // Remove lone ▶ buttons
+        item.querySelectorAll('button, .track-time, span.track-time').forEach(b => {
+            if (!b.closest('.track-details')) b.remove();
+        });
+        item.childNodes.forEach(n => {
+            if (n.nodeType === 3 && n.textContent.trim() === '▶') n.remove();
+        });
+
+        item.style.cssText = 'display:flex;align-items:center;padding:14px 16px;gap:14px;border:1px solid var(--border-gray);border-radius:14px;margin-bottom:10px;';
+    });
+});
+
+observer.observe(resultsList, { childList: true, subtree: true });
+</script>
+</body>
+</html>

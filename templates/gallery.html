@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery | AI Music Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- WaveSurfer -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.8.7/wavesurfer.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="logo-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <nav class="nav-menu">
+        <button title="Studio"><i class="fa-solid fa-music"></i></button>
+        <button title="Discovery"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button title="Gallery"><i class="fa-solid fa-globe"></i></button>
+        <button title="Profile"><i class="fa-regular fa-user"></i></button>
+        <button id="logout-btn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <button id="theme-toggle" title="Toggle Dark Mode"><i class="fa-solid fa-moon"></i></button>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="header">
+        <h1>Community Gallery</h1>
+        <p>Listen to music created by all artists on the platform</p>
+      </header>
+
+      <div id="gallery-grid" class="gallery-grid">
+        <!-- Cards injected by JS -->
+        <div style="grid-column:1/-1;text-align:center;padding:60px;color:#888">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem"></i>
+          <p style="margin-top:12px">Loading tracks...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio | AI Music Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.8.7/wavesurfer.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="logo-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <nav class="nav-menu">
+            <button title="Studio"><i class="fa-solid fa-music"></i></button>
+            <button title="Discovery"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button title="Profile"><i class="fa-regular fa-user"></i></button>
+            <button id="logout-btn" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+            <button id="theme-toggle" title="Toggle Dark Mode"><i class="fa-solid fa-moon"></i></button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <h1>Music Generation Studio</h1>
+            <p>Create unique music with AI-powered tools</p>
+        </header>
+
+        <div class="workspace">
+            <section class="generator-settings">
+
+                <!-- FEATURE TABS -->
+                <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                    <button class="feature-tab active" data-feature="music"
+                        style="flex:1;min-width:100px;padding:10px 8px;border-radius:10px;border:1.5px solid #7c3aed;background:#7c3aed;color:#fff;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <i class="fa-solid fa-music"></i> Generate Music
+                    </button>
+                    <button class="feature-tab" data-feature="lyrics"
+                        style="flex:1;min-width:100px;padding:10px 8px;border-radius:10px;border:1.5px solid #e5e7eb;background:transparent;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <i class="fa-solid fa-microphone-lines"></i> Music + Lyrics
+                    </button>
+                    <button class="feature-tab" data-feature="remix"
+                        style="flex:1;min-width:100px;padding:10px 8px;border-radius:10px;border:1.5px solid #e5e7eb;background:transparent;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <i class="fa-solid fa-shuffle"></i> Remix Songs
+                    </button>
+                    <button class="feature-tab" data-feature="video"
+                        style="flex:1;min-width:100px;padding:10px 8px;border-radius:10px;border:1.5px solid #e5e7eb;background:transparent;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                        <i class="fa-solid fa-film"></i> Video BGM
+                    </button>
+                </div>
+
+                <!-- SHARED: DESCRIBE MUSIC (hidden for remix/video) -->
+                <div class="input-card" id="prompt-card">
+                    <h3>Describe Your Music</h3>
+                    <textarea id="prompt-input" placeholder="e.g., An upbeat pop song with dreamy synths..."></textarea>
+                    <div class="prompt-tools">
+                        <button><i class="fa-solid fa-wand-sparkles"></i> Enhance Prompt</button>
+                        <button><i class="fa-solid fa-microphone"></i> Voice Input</button>
+                    </div>
+                </div>
+
+                <!-- LYRICS OPTIONS -->
+                <div class="input-card hidden" id="lyrics-options">
+                    <h3>Lyrics Settings</h3>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <select id="lyrics-language" class="input-field" style="flex:1;min-width:140px;margin-bottom:0;">
+                            <option value="English">English</option>
+                            <option value="Telugu">Telugu</option>
+                            <option value="Hindi">Hindi</option>
+                            <option value="Tamil">Tamil</option>
+                            <option value="Mixed">Mixed (English + Telugu)</option>
+                        </select>
+                        <input type="text" id="lyrics-style" class="input-field"
+                            placeholder="Style: slow, romantic, upbeat..." style="flex:2;min-width:140px;margin-bottom:0;">
+                    </div>
+                </div>
+
+                <!-- FLASHMOB MIXER (replaces old DJ remix) -->
+                <div class="input-card hidden" id="remix-options">
+                    <h3>Flashmob Mixer <span style="color:#888;font-size:0.8rem;">(2–5 songs)</span></h3>
+                    <p style="font-size:0.78rem;color:#999;margin:-4px 0 12px;">Lyric + beat-matched transitions between your tracks</p>
+
+                    <!-- Upload Zone -->
+                    <div style="display:block;border:2px dashed #e5e7eb;border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;" id="remix-drop-label"
+                        ondragover="event.preventDefault();event.stopPropagation();this.style.borderColor='#7c3aed';"
+                        ondragleave="if(!this.contains(event.relatedTarget)){this.style.borderColor='';}"
+                        ondrop="event.preventDefault();event.stopPropagation();this.style.borderColor='';fmHandleFiles([...event.dataTransfer.files].filter(f=>f.type.startsWith('audio/')))"
+                        onclick="document.getElementById('remix-files-input').click()">
+                        <i class="fa-solid fa-upload" style="font-size:1.6rem;color:#7c3aed;display:block;margin-bottom:8px;pointer-events:none;user-select:none;"></i>
+                        <span id="remix-files-label" style="pointer-events:none;user-select:none;">Click to select 2–5 audio files (MP3/WAV)</span>
+                        <input type="file" id="remix-files-input" accept="audio/*" multiple style="display:none;"
+                            onchange="fmHandleFiles([...this.files])">
+                    </div>
+
+                    <!-- Track List -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;margin-bottom:4px;">
+                        <span id="fm-track-count" style="font-size:0.78rem;color:#999;"></span>
+                        <button onclick="fmClearAll()" id="fm-clear-btn" style="display:none;font-size:0.75rem;color:#ef4444;background:none;border:none;cursor:pointer;padding:2px 6px;">
+                            <i class="fa-solid fa-trash"></i> Clear All
+                        </button>
+                    </div>
+                    <div id="fm-track-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+                    <!-- Settings row -->
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center;">
+                        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:130px;">
+                            <label style="font-size:0.8rem;color:#666;white-space:nowrap;">Segment:</label>
+                            <input type="range" id="fm-seg-range" min="15" max="90" value="30" style="flex:1;"
+                                oninput="document.getElementById('fm-seg-val').textContent=this.value+'s'">
+                            <span id="fm-seg-val" style="font-size:0.8rem;color:#7c3aed;min-width:30px;">30s</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:150px;">
+                            <label style="font-size:0.8rem;color:#666;white-space:nowrap;">AI Bridge:</label>
+                            <input type="range" id="fm-cf-range" min="4" max="16" value="8" style="flex:1;"
+                                oninput="document.getElementById('fm-cf-val').textContent=this.value+'s';document.getElementById('bridge-dur-preview').textContent=this.value+'s'">
+                            <span id="fm-cf-val" style="font-size:0.8rem;color:#7c3aed;min-width:30px;">8s</span>
+                        </div>
+                    </div>
+
+                    <!-- Info pill -->
+                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+                        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1.5px solid #10b981;background:#f0fdf4;color:#10b981;font-size:0.78rem;font-weight:600;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI DJ Transitions Active
+                        </div>
+                        <button id="fm-toggle-beat" onclick="fmToggle(this)" data-on="true"
+                            style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1.5px solid #7c3aed;background:#f5f3ff;color:#7c3aed;font-size:0.78rem;font-weight:600;cursor:pointer;">
+                            <i class="fa-solid fa-drum"></i> Beat Sync ON
+                        </button>
+                    </div>
+
+                    <!-- AI bridge info box -->
+                    <div style="margin-top:10px;padding:10px 14px;background:#faf5ff;border:1px solid #ede9fe;border-radius:10px;font-size:0.78rem;color:#6d28d9;line-height:1.5;">
+                        <i class="fa-solid fa-circle-info"></i>
+                        MusicGen will generate a <strong id="bridge-dur-preview">8s</strong> professional DJ transition between each pair of tracks —
+                        beat-matched, filter sweep, bass drop. Each bridge takes ~15–30s to generate.
+                    </div>
+
+                    <!-- Transition Flow (shows after 2+ tracks) -->
+                    <div id="fm-flow" style="display:none;margin-top:14px;padding:12px;background:#f9fafb;border-radius:10px;border:1px solid #f0f0f0;">
+                        <p style="font-size:0.72rem;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">AI Bridge Plan</p>
+                        <div id="fm-flow-content"></div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button class="main-generate-btn" id="remix-btn" style="margin-top:14px;" disabled onclick="fmStartMix()">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI DJ Mix
+                    </button>
+
+                    <!-- Playback Panel (hidden until mix ready) -->
+                    <div id="fm-player" style="display:none;margin-top:14px;padding:14px;background:#f9fafb;border-radius:12px;border:1px solid #ede9fe;">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.95rem;flex-shrink:0;">
+                                <i class="fa-solid fa-music"></i>
+                            </div>
+                            <div style="flex:1;min-width:0;">
+                                <strong id="fm-np-title" style="display:block;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Flashmob Mix</strong>
+                                <span id="fm-np-sub" style="font-size:0.75rem;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"></span>
+                            </div>
+                            <div style="display:flex;gap:6px;">
+                                <button onclick="fmTogglePlay()" id="fm-play-btn"
+                                    style="width:36px;height:36px;border-radius:50%;background:#7c3aed;border:none;color:white;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                                    <i class="fa-solid fa-pause"></i>
+                                </button>
+                                <button onclick="fmDownload()" title="Download"
+                                    style="width:36px;height:36px;border-radius:50%;background:#f3f4f6;border:1px solid #e5e7eb;color:#555;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                                    <i class="fa-solid fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Progress -->
+                        <div style="height:4px;background:#e5e7eb;border-radius:99px;margin-bottom:5px;">
+                            <div id="fm-progress" style="height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:99px;width:0%;transition:width 0.3s linear;"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#999;margin-bottom:10px;">
+                            <span id="fm-cur-time">0:00</span><span id="fm-tot-time">0:00</span>
+                        </div>
+                        <!-- Transition log -->
+                        <div id="fm-log" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+
+                <!-- VIDEO BGM UPLOAD -->
+                <div class="input-card hidden" id="video-options">
+
+                    <!-- Step 1: Upload Video (shared by both modes) -->
+                    <h3>Upload Your Video</h3>
+                    <div id="video-drop-label" style="display:block;border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;">
+                        <i class="fa-solid fa-film" style="font-size:1.8rem;color:#7c3aed;display:block;margin-bottom:8px;pointer-events:none;"></i>
+                        <span id="video-upload-name" style="font-size:0.9rem;color:#666;pointer-events:none;">Drag & drop a video here, or click to browse</span>
+                        <input type="file" id="video-upload-input" accept="video/*" style="display:none;" onclick="event.stopPropagation()">
+                    </div>
+
+                    <!-- Mode Toggle -->
+                    <div style="display:flex;margin-top:16px;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+                        <button id="mode-ai-btn" onclick="switchVideoMode('ai')" style="flex:1;padding:11px 6px;border:none;background:#7c3aed;color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI Generate BGM
+                        </button>
+                        <button id="mode-suggest-btn" onclick="switchVideoMode('suggest')" style="flex:1;padding:11px 6px;border:none;background:#f9fafb;color:#555;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                            <i class="fa-solid fa-music"></i> Find Existing Song
+                        </button>
+                    </div>
+
+                    <!-- MODE A: AI BGM Generation -->
+                    <div id="video-mode-ai">
+                        <p style="font-size:0.8rem;color:#888;margin:12px 0 8px;">AI will generate original background music matching your video length, then replace the original audio.</p>
+                        <input type="text" id="video-mood-input" class="input-field"
+                            placeholder="Mood hint — e.g. epic, romantic, calm, upbeat (optional)" style="margin-bottom:10px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+                            <button class="occasion-chip" data-val="cinematic epic">🎬 Cinematic</button>
+                            <button class="occasion-chip" data-val="romantic emotional">💜 Romantic</button>
+                            <button class="occasion-chip" data-val="upbeat energetic fun">⚡ Energetic</button>
+                            <button class="occasion-chip" data-val="calm peaceful ambient">🌊 Calm</button>
+                            <button class="occasion-chip" data-val="happy cheerful celebration">🎉 Happy</button>
+                            <button class="occasion-chip" data-val="dark mysterious suspense">🌑 Dark</button>
+                        </div>
+                        <button class="main-generate-btn" id="video-bgm-btn">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI BGM &amp; Replace Audio
+                        </button>
+                    </div>
+
+                    <!-- MODE B: Song Suggestions -->
+                    <div id="video-mode-suggest" style="display:none;">
+                        <p style="font-size:0.8rem;color:#888;margin:12px 0 8px;">Pick a category below or describe your video — we'll suggest real trending songs that fit perfectly.</p>
+
+                        <!-- Quick occasion chips — pick one or type below -->
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" id="occasion-chips">
+                            <button class="occasion-chip" data-val="wedding ceremony love">💍 Wedding</button>
+                            <button class="occasion-chip" data-val="travel adventure vlog">✈️ Travel</button>
+                            <button class="occasion-chip" data-val="birthday party celebration">🎂 Birthday</button>
+                            <button class="occasion-chip" data-val="gym workout fitness motivation">💪 Workout</button>
+                            <button class="occasion-chip" data-val="instagram reels trending viral short">📱 Reels</button>
+                            <button class="occasion-chip" data-val="baby kids family moments">👶 Family</button>
+                        </div>
+
+                        <input type="text" id="video-occasion-input" class="input-field"
+                            placeholder="Or describe your video — e.g. 'graduation party', 'road trip montage'" style="margin-bottom:8px;">
+                        <input type="text" id="video-prompt-input" class="input-field"
+                            placeholder="Music style preference? e.g. 'upbeat pop', 'soft acoustic' (optional)" style="margin-bottom:12px;">
+
+                        <button class="main-generate-btn" id="suggest-songs-btn" style="background:linear-gradient(135deg,#10b981,#059669);">
+                            <i class="fa-solid fa-magnifying-glass"></i> Suggest Songs for My Video
+                        </button>
+
+                        <!-- Results Panel -->
+                        <div id="song-suggestions-panel" style="display:none;margin-top:18px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h4 style="margin:0;font-size:0.95rem;">🎵 Suggested Songs</h4>
+                                <span style="font-size:0.75rem;color:#888;background:#f0fdf4;color:#10b981;padding:3px 10px;border-radius:99px;font-weight:600;" id="suggest-count-badge"></span>
+                            </div>
+                            <div id="song-suggestions-list"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- REFINE PREVIOUS TRACK -->
+                <div class="input-card" id="refine-card">
+                    <h3>Refine a Previous Track</h3>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <select id="reference-track-select" class="input-field" style="margin-bottom:0;">
+                            <option value="">-- Select a generated track to modify --</option>
+                        </select>
+                        <button class="sec-btn" id="refresh-tracks-btn"><i class="fa-solid fa-sync"></i></button>
+                    </div>
+                    <p class="search-hint">Select a track to "add more time" or "change instruments."</p>
+                </div>
+
+                <!-- INSTRUMENTS -->
+                <div class="input-card">
+                    <h3>Select Instruments</h3>
+                    <div class="instrument-list">
+                        <button class="instrument-chip">Piano</button>
+                        <button class="instrument-chip">Guitar</button>
+                        <button class="instrument-chip">Drums</button>
+                        <button class="instrument-chip">Violin</button>
+                        <button class="instrument-chip">Synth</button>
+                    </div>
+                </div>
+
+                <!-- DURATION -->
+                <div class="input-card">
+                    <div class="label-row">
+                        <h3>Duration</h3>
+                        <span id="time-label">00:20</span>
+                    </div>
+                    <input type="range" id="duration-slider" min="20" max="180" value="20">
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#aaa;margin-top:4px;">
+                        <span>20s</span><span>1 min</span><span>2 min</span><span>3 min</span>
+                    </div>
+                </div>
+
+                <!-- MAIN GENERATE BUTTON -->
+                <button class="main-generate-btn" id="main-generate-btn">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Music
+                </button>
+
+                <!-- OUTPUT CARD -->
+                <div class="output-card hidden" id="generated-track-container">
+                    <div class="track-info">
+                        <div class="album-art"><i class="fa-solid fa-music"></i></div>
+                        <div>
+                            <h4 style="margin:0;color:#333;">AI Generated Track</h4>
+                            <p style="margin:5px 0 0;color:#777;font-size:0.9rem;">
+                                Prompt: <span id="prompt-preview" style="font-weight:500;">...</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="play-btn"><i class="fa-solid fa-play"></i> Play</button>
+                        <button class="download-btn"><i class="fa-solid fa-download"></i> Download</button>
+                        <a id="video-download-link" style="display:none;text-decoration:none;">
+                            <button class="download-btn"><i class="fa-solid fa-film"></i> Download Video</button>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- KARAOKE BOX -->
+                <div class="input-card hidden" id="karaoke-container" style="margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h3 style="margin:0;">🎤 Karaoke</h3>
+                        <button id="toggle-full-lyrics" class="sec-btn" style="font-size:0.75rem;padding:4px 10px;">Show All Lyrics</button>
+                    </div>
+                    <div id="karaoke-display" style="font-size:1.1rem;line-height:2;text-align:center;padding:20px 16px;min-height:80px;background:linear-gradient(135deg,#1a0533,#0f0f1a);border-radius:12px;overflow:hidden;">
+                        <div id="karaoke-words" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;"></div>
+                    </div>
+                    <div id="full-lyrics-box" style="display:none;margin-top:12px;white-space:pre-wrap;font-size:0.88rem;color:#555;line-height:1.9;max-height:180px;overflow-y:auto;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;"></div>
+                </div>
+
+            </section>
+
+            <aside class="mixer-panel">
+                <div class="mixer-card">
+                    <h3>Multi-Track Mixer</h3>
+                    <div class="faders">
+                        <div class="fader-group">
+                            <input type="range" orient="vertical" class="v-fader" style="-webkit-appearance:slider-vertical;">
+                            <label>Drums</label>
+                        </div>
+                        <div class="fader-group">
+                            <input type="range" orient="vertical" class="v-fader" style="-webkit-appearance:slider-vertical;">
+                            <label>Melody</label>
+                        </div>
+                        <div class="fader-group">
+                            <input type="range" orient="vertical" class="v-fader" style="-webkit-appearance:slider-vertical;">
+                            <label>Bass</label>
+                        </div>
+                    </div>
+                    <button class="reset-btn">Reset Levels</button>
+                </div>
+
+                <!-- Model Info Card -->
+                <div class="mixer-card" style="margin-top:16px;">
+                    <h3>🤖 AI Model Info</h3>
+                    <div style="font-size:0.8rem;color:#666;line-height:1.9;">
+                        <div style="display:flex;justify-content:space-between;"><span>Model</span><strong id="mi-name" style="color:#7c3aed;">Loading...</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Creator</span><strong id="mi-creator">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Parameters</span><strong id="mi-params">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Architecture</span><strong id="mi-arch">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Training Data</span><strong id="mi-train">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>FAD Score</span><strong id="mi-fad" style="color:#10b981;">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>MOS Score</span><strong id="mi-mos" style="color:#10b981;">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Device</span><strong id="mi-device">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>Status</span><strong id="mi-status" style="color:#10b981;">—</strong></div>
+                    </div>
+                </div>
+
+                <!-- Generation Stats Card -->
+                <div class="mixer-card hidden" id="gen-stats-card" style="margin-top:16px;">
+                    <h3>📊 Last Generation</h3>
+                    <div style="font-size:0.8rem;color:#666;line-height:1.9;">
+                        <div style="display:flex;justify-content:space-between;"><span>⏱ Gen Time</span><strong id="gs-time" style="color:#7c3aed;">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>🖥 Device</span><strong id="gs-device">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>🎵 Duration</span><strong id="gs-duration">—</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span>🤖 Model</span><strong id="gs-model">—</strong></div>
+                    </div>
+                    <div style="margin-top:12px;padding:12px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:10px;text-align:center;">
+                        <div style="font-size:0.75rem;color:#7c3aed;font-weight:600;margin-bottom:4px;">PROMPT MATCH SCORE</div>
+                        <div style="position:relative;height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:6px 0;">
+                            <div id="quality-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#10b981);border-radius:99px;width:0%;transition:width 1s ease;"></div>
+                        </div>
+                        <div style="font-size:1.8rem;font-weight:700;color:#7c3aed;" id="quality-score">—</div>
+                        <div style="font-size:0.75rem;color:#888;" id="quality-feedback">—</div>
+                    </div>
+                    <div style="margin-top:10px;font-size:0.75rem;color:#999;text-align:center;border-top:1px solid #f0f0f0;padding-top:8px;">
+                        Benchmark: FAD <strong style="color:#10b981;">7.8</strong> · MOS <strong style="color:#10b981;">3.8/5</strong> · Trained on <strong>20k hrs</strong>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="player-bar hidden" id="global-player">
+        <div class="now-playing">
+            <div class="player-art">AI Art</div>
+            <div class="player-meta">
+                <strong id="playing-title">Select a track</strong>
+                <span id="playing-artist">AI Music Studio</span>
+            </div>
+        </div>
+        <div class="player-visualizer"><div class="waveform-mock"></div></div>
+        <div class="player-controls">
+            <div class="main-controls">
+                <button><i class="fa-solid fa-backward-step"></i></button>
+                <button class="play-pause"><i class="fa-solid fa-play"></i></button>
+                <button><i class="fa-solid fa-forward-step"></i></button>
+            </div>
+            <div class="progress-container">
+                <span id="current-time">0:00</span>
+                <input type="range" class="progress-slider" value="0">
+                <span id="total-time">0:00</span>
+            </div>
+        </div>
+        <div class="volume-controls">
+            <i class="fa-solid fa-volume-high"></i>
+            <input type="range" class="volume-slider" min="0" max="150" value="100">
+        </div>
+    </footer>
+</div>
+<script src="/static/script.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  FLASHMOB MIXER
+// ══════════════════════════════════════════════════════════════
+(function() {
+
+// ── State ──────────────────────────────────────────────────────
+let fmTracks    = [];
+let fmAudioCtx  = null;
+let fmMixNodes  = [];
+let fmPlaying   = false;
+let fmStartedAt = 0;
+let fmPausedAt  = 0;
+let fmTotalDur  = 0;
+let fmRafId     = null;
+let fmPlan      = [];   // transition plan
+let fmBuffers   = [];   // decoded AudioBuffers
+
+// ── Helpers ────────────────────────────────────────────────────
+function fmFmt(s) {
+    s = Math.max(0, Math.floor(s));
+    return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+// ── Toggle pill buttons ────────────────────────────────────────
+window.fmToggle = function(btn) {
+    const on = btn.dataset.on === 'true';
+    btn.dataset.on = on ? 'false' : 'true';
+    if (!on) {
+        btn.style.background = '#f5f3ff';
+        btn.style.color = '#7c3aed';
+        btn.style.borderColor = '#7c3aed';
+        btn.innerHTML = btn.innerHTML.replace('OFF','ON');
+    } else {
+        btn.style.background = '#f3f4f6';
+        btn.style.color = '#999';
+        btn.style.borderColor = '#e5e7eb';
+        btn.innerHTML = btn.innerHTML.replace('ON','OFF');
+    }
+    fmUpdateFlow();
+};
+
+// ── File handling ──────────────────────────────────────────────
+window.fmHandleFiles = function(files) {
+    const remaining = 5 - fmTracks.length;
+    if (remaining <= 0) { showToast('Maximum 5 songs reached','error'); return; }
+    const toAdd = files.slice(0, remaining);
+    let added = 0;
+    toAdd.forEach(f => {
+        // Dedup by name+size (not just name, so same-named different files are allowed)
+        if (fmTracks.find(t => t.name === f.name.replace(/\.[^.]+$/,'') && t.size === f.size)) return;
+        const track = { file: f, name: f.name.replace(/\.[^.]+$/,''), size: f.size };
+        fmTracks.push(track);
+        fmAnalyze(track);
+        added++;
+    });
+    if (added === 0) showToast('Those files are already in the list','info');
+    fmRenderList();
+    fmUpdateFlow();
+    fmCheckReady();
+};
+
+// ── Analyze BPM + keywords ─────────────────────────────────────
+function fmAnalyze(track) {
+    const reader = new FileReader();
+    reader.onload = async e => {
+        try {
+            const ctx = new (window.AudioContext||window.webkitAudioContext)();
+            const buf = await ctx.decodeAudioData(e.target.result.slice(0));
+            track.duration = buf.duration;
+            track.bpm = fmEstimateBPM(buf);
+            await ctx.close();
+        } catch(_) {
+            track.duration = 120; track.bpm = 120;
+        }
+        track.keywords = fmKeywords(track.name);
+        fmRenderList();
+        fmUpdateFlow();
+    };
+    reader.readAsArrayBuffer(track.file);
+}
+
+function fmEstimateBPM(buf) {
+    const data = buf.getChannelData(0);
+    const sr = buf.sampleRate;
+    const step = Math.floor(sr/100);
+    let onsets = 0, lastE = 0;
+    for (let i=0; i<Math.min(data.length, sr*30); i+=step) {
+        let e=0; for(let j=i;j<Math.min(i+step,data.length);j++) e+=data[j]*data[j]; e/=step;
+        if(e>lastE*1.5&&e>0.001) onsets++;
+        lastE=e*0.9+lastE*0.1;
+    }
+    const bpm = Math.round((onsets/Math.min(buf.duration,30))*60);
+    return Math.max(60,Math.min(200,bpm||120));
+}
+
+function fmKeywords(name) {
+    const stop = ['feat','with','official','audio','video','lyrics','ft','the','and','for'];
+    const words = name.toLowerCase().replace(/[-_]/g,' ').split(/\s+/)
+        .filter(w => w.length>3 && !stop.includes(w));
+    return words.length ? words : ['mix','beat','drop'];
+}
+
+function fmFindMatch(kw1, kw2) {
+    for(const w of kw1) if(kw2.includes(w)) return w;
+    return null;
+}
+
+// ── Render track list ──────────────────────────────────────────
+function fmRenderList() {
+    const list = document.getElementById('fm-track-list');
+    const label = document.getElementById('remix-files-label');
+    const countEl = document.getElementById('fm-track-count');
+    const clearBtn = document.getElementById('fm-clear-btn');
+    if(label) label.textContent = fmTracks.length
+        ? `${fmTracks.length} song${fmTracks.length>1?'s':''} added — drag more or click to add`
+        : 'Click to select 2–5 audio files (MP3/WAV)';
+    if(countEl) countEl.textContent = fmTracks.length ? `${fmTracks.length}/5 tracks` : '';
+    if(clearBtn) clearBtn.style.display = fmTracks.length ? 'block' : 'none';
+
+    const colors = ['#7c3aed','#00d9ff','#10b981','#f59e0b','#ef4444'];
+    list.innerHTML = fmTracks.map((t,i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+            background:#f9fafb;border-radius:10px;border-left:3px solid ${colors[i%colors.length]};
+            border:1px solid #f0f0f0;border-left:3px solid ${colors[i%colors.length]};">
+            <span style="font-size:0.72rem;font-weight:700;color:${colors[i%colors.length]};
+                min-width:20px;font-family:monospace;">${String(i+1).padStart(2,'0')}</span>
+            <div style="flex:1;min-width:0;">
+                <strong style="display:block;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</strong>
+                <span style="font-size:0.72rem;color:#999;">
+                    ${t.duration ? fmFmt(t.duration) : '…'}
+                    ${t.bpm ? '· '+t.bpm+' BPM' : ''}
+                    ${t.keywords ? '· "'+t.keywords[0]+'"' : ''}
+                </span>
+            </div>
+            <button onclick="fmRemove(${i})" title="Remove"
+                style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.85rem;padding:4px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+window.fmRemove = function(i) {
+    fmTracks.splice(i,1);
+    fmRenderList(); fmUpdateFlow(); fmCheckReady();
+};
+
+window.fmClearAll = function() {
+    fmTracks = [];
+    fmStopMix();
+    fmRenderList(); fmUpdateFlow(); fmCheckReady();
+    // Reset player panel
+    const player = document.getElementById('fm-player');
+    if (player) player.style.display = 'none';
+    showToast('Track list cleared','info');
+};
+
+// ── Transition flow ────────────────────────────────────────────
+function fmUpdateFlow() {
+    const flow = document.getElementById('fm-flow');
+    const content = document.getElementById('fm-flow-content');
+    if(fmTracks.length < 2) { flow.style.display='none'; return; }
+    flow.style.display='block';
+
+    const lyricOn = document.getElementById('fm-toggle-lyric')?.dataset.on === 'true';
+    const beatOn  = document.getElementById('fm-toggle-beat')?.dataset.on  === 'true';
+
+    content.innerHTML = fmTracks.slice(0,-1).map((a,i) => {
+        const b = fmTracks[i+1];
+        const match = lyricOn ? fmFindMatch(a.keywords||[],b.keywords||[]) : null;
+        const bpmOk = beatOn && a.bpm && b.bpm && Math.abs(a.bpm-b.bpm)<20;
+        const tag   = match ? `"${match}"` : bpmOk ? `~${a.bpm}bpm` : 'auto';
+        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:0.78rem;">
+            <span style="background:#ede9fe;color:#7c3aed;padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;" title="${a.name}">${a.name}</span>
+            <span style="color:#999;font-size:0.65rem;flex-shrink:0;">→</span>
+            <span style="background:#f0fdf4;color:#10b981;padding:2px 6px;border-radius:5px;font-size:0.7rem;font-family:monospace;flex-shrink:0;">${tag}</span>
+            <span style="color:#999;font-size:0.65rem;flex-shrink:0;">→</span>
+            <span style="background:#ede9fe;color:#7c3aed;padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;" title="${b.name}">${b.name}</span>
+        </div>`;
+    }).join('');
+}
+
+// ── Ready check ────────────────────────────────────────────────
+function fmCheckReady() {
+    const btn = document.getElementById('remix-btn');
+    if(btn) btn.disabled = fmTracks.length < 2;
+}
+
+// ── Build + play mix ───────────────────────────────────────────
+window.fmStartMix = async function() {
+    if(fmTracks.length < 2) { showToast('Add at least 2 songs','error'); return; }
+    const btn = document.getElementById('remix-btn');
+    btn.disabled=true;
+    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Building Mix…';
+
+    fmStopMix();
+
+    fmAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const masterGain = fmAudioCtx.createGain();
+    masterGain.connect(fmAudioCtx.destination);
+
+    const seg     = parseInt(document.getElementById('fm-seg-range').value);
+    const cf      = parseInt(document.getElementById('fm-cf-range').value);
+    const beatOn  = document.getElementById('fm-toggle-beat')?.dataset.on  === 'true';
+
+    // Decode all files
+    try {
+        fmBuffers = await Promise.all(fmTracks.map(t => new Promise((res,rej) => {
+            const r = new FileReader();
+            r.onload = async e => { try { res(await fmAudioCtx.decodeAudioData(e.target.result)); } catch(err){rej(err);} };
+            r.readAsArrayBuffer(t.file);
+        })));
+    } catch(e) {
+        showToast('Could not decode audio: '+e.message,'error');
+        btn.disabled=false;
+        btn.innerHTML='<i class="fa-solid fa-bolt"></i> Generate Flashmob Mix';
+        return;
+    }
+
+    fmMixNodes=[]; fmPlan=[];
+    let cursor=0;
+
+    for(let i=0;i<fmTracks.length;i++) {
+        const buf=fmBuffers[i];
+        const dur=Math.min(seg, buf.duration-cf);
+        if(dur<=0) continue;
+
+        const src=fmAudioCtx.createBufferSource();
+        const gain=fmAudioCtx.createGain();
+        src.buffer=buf; src.connect(gain); gain.connect(masterGain);
+
+        gain.gain.setValueAtTime(0, cursor);
+        gain.gain.linearRampToValueAtTime(1, cursor+cf);
+        src.start(fmAudioCtx.currentTime+cursor, 0, dur+cf);
+        const fo=cursor+dur;
+        gain.gain.setValueAtTime(1,fo);
+        gain.gain.linearRampToValueAtTime(0,fo+cf);
+
+        if(i<fmTracks.length-1) {
+            const a=fmTracks[i], b=fmTracks[i+1];
+            const bpmOk=beatOn&&a.bpm&&b.bpm&&Math.abs(a.bpm-b.bpm)<20;
+            const match=fmFindMatch(a.keywords||[],b.keywords||[]);
+            fmPlan.push({
+                fromIdx:i,toIdx:i+1,
+                atTime:cursor+dur,
+                tag: match?`"${match}"`:bpmOk?`~${a.bpm}bpm`:'auto'
+            });
+        }
+        fmMixNodes.push({src,gain,start:cursor,dur:dur+cf});
+        cursor+=dur;
+    }
+
+    fmTotalDur  = cursor+cf;
+    fmStartedAt = fmAudioCtx.currentTime;
+    fmPausedAt  = 0;
+    fmPlaying   = true;
+
+    // Show player
+    const player = document.getElementById('fm-player');
+    player.style.display='block';
+    document.getElementById('fm-np-title').textContent = `Flashmob Mix (${fmTracks.length} tracks)`;
+    document.getElementById('fm-np-sub').textContent   = fmTracks.map(t=>t.name).join(' → ');
+    document.getElementById('fm-tot-time').textContent = fmFmt(fmTotalDur);
+    document.getElementById('fm-play-btn').innerHTML   = '<i class="fa-solid fa-pause"></i>';
+
+    fmRenderLog();
+
+    // ── Also send to backend to save in DB ──────────────────
+    (async () => {
+        try {
+            const fd = new FormData();
+            fmTracks.forEach(t => fd.append('songs', t.file));
+            fd.append('segment_duration', seg);
+            fd.append('crossfade', cf);
+            fd.append('beat_sync', beatOn ? 'true' : 'false');
+            const res  = await fetch('/api/remix-songs', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Mix saved to your profile! 🎉', 'success');
+            }
+        } catch(e) {
+            console.warn('Backend save failed (mix still plays locally):', e);
+        }
+    })();
+    fmStartLoop();
+
+    btn.disabled=false;
+    btn.innerHTML='<i class="fa-solid fa-bolt"></i> Generate Flashmob Mix';
+    showToast('Flashmob mix is playing! 🎉','success');
+};
+
+// ── Transition log ─────────────────────────────────────────────
+function fmRenderLog() {
+    const colors=['#7c3aed','#00d9ff','#10b981','#f59e0b','#ef4444'];
+    document.getElementById('fm-log').innerHTML = fmTracks.map((t,i) => {
+        const tr=fmPlan.find(p=>p.fromIdx===i);
+        return `<div id="fm-log-${i}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:0.75rem;background:#f3f4f6;transition:background 0.3s;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${colors[i%colors.length]};flex-shrink:0;"></span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name}</span>
+            ${tr?`<span style="font-family:monospace;color:#10b981;font-size:0.68rem;">${tr.tag}</span><span style="color:#ccc;">${fmFmt(tr.atTime)}</span>`:''}
+        </div>`;
+    }).join('');
+}
+
+function fmHighlightLog(idx) {
+    fmTracks.forEach((_,i) => {
+        const el=document.getElementById('fm-log-'+i);
+        if(el) el.style.background = i===idx ? '#ede9fe' : '#f3f4f6';
+    });
+}
+
+// ── Progress loop ──────────────────────────────────────────────
+function fmStartLoop() {
+    cancelAnimationFrame(fmRafId);
+    let lastSeg=-1;
+    function loop() {
+        if(!fmAudioCtx) return;
+        if(fmPlaying) {
+            const elapsed = fmAudioCtx.currentTime - fmStartedAt + fmPausedAt;
+            const pct = Math.min(elapsed/fmTotalDur,1);
+            document.getElementById('fm-progress').style.width=(pct*100)+'%';
+            document.getElementById('fm-cur-time').textContent=fmFmt(elapsed);
+
+            let seg=0;
+            for(let i=0;i<fmPlan.length;i++) if(elapsed>=fmPlan[i].atTime) seg=fmPlan[i].toIdx;
+            if(seg!==lastSeg){ fmHighlightLog(seg); lastSeg=seg; }
+
+            if(pct>=1){ fmPlaying=false; document.getElementById('fm-play-btn').innerHTML='<i class="fa-solid fa-play"></i>'; return; }
+        }
+        fmRafId=requestAnimationFrame(loop);
+    }
+    fmRafId=requestAnimationFrame(loop);
+}
+
+// ── Playback toggle ────────────────────────────────────────────
+window.fmTogglePlay = function() {
+    if(!fmAudioCtx) return;
+    if(fmPlaying) {
+        fmAudioCtx.suspend();
+        fmPlaying=false;
+        fmPausedAt+=fmAudioCtx.currentTime-fmStartedAt;
+        document.getElementById('fm-play-btn').innerHTML='<i class="fa-solid fa-play"></i>';
+    } else {
+        fmAudioCtx.resume();
+        fmPlaying=true;
+        fmStartedAt=fmAudioCtx.currentTime;
+        document.getElementById('fm-play-btn').innerHTML='<i class="fa-solid fa-pause"></i>';
+    }
+};
+
+// ── Stop ───────────────────────────────────────────────────────
+function fmStopMix() {
+    cancelAnimationFrame(fmRafId);
+    fmMixNodes.forEach(n=>{ try{n.src.stop();}catch{} });
+    fmMixNodes=[];
+    if(fmAudioCtx){ fmAudioCtx.close(); fmAudioCtx=null; }
+    fmPlaying=false;
+}
+
+// ── Download ───────────────────────────────────────────────────
+window.fmDownload = async function() {
+    if(!fmBuffers.length){ showToast('Generate a mix first','error'); return; }
+    showToast('Rendering download…','info');
+    const seg=parseInt(document.getElementById('fm-seg-range').value);
+    const cf=parseInt(document.getElementById('fm-cf-range').value);
+    const offCtx=new OfflineAudioContext(2,Math.ceil(44100*fmTotalDur),44100);
+    let cursor=0;
+    for(let i=0;i<fmBuffers.length;i++){
+        const buf=fmBuffers[i];
+        const dur=Math.min(seg,buf.duration-cf); if(dur<=0) continue;
+        const src=offCtx.createBufferSource(), gain=offCtx.createGain();
+        src.buffer=buf; src.connect(gain); gain.connect(offCtx.destination);
+        gain.gain.setValueAtTime(0,cursor);
+        gain.gain.linearRampToValueAtTime(1,cursor+cf);
+        src.start(cursor,0,dur+cf);
+        const fo=cursor+dur;
+        gain.gain.setValueAtTime(1,fo); gain.gain.linearRampToValueAtTime(0,fo+cf);
+        cursor+=dur;
+    }
+    const rendered=await offCtx.startRendering();
+    const wav=fmToWav(rendered);
+    const url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
+    const a=document.createElement('a'); a.href=url; a.download='flashmob_mix.wav'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Download started! 🎵','success');
+};
+
+function fmToWav(buf){
+    const ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+    const ab=new ArrayBuffer(44+len*ch*2),view=new DataView(ab);
+    const ws=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+    ws(0,'RIFF');view.setUint32(4,36+len*ch*2,true);ws(8,'WAVE');
+    ws(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+    view.setUint16(22,ch,true);view.setUint32(24,sr,true);view.setUint32(28,sr*ch*2,true);
+    view.setUint16(32,ch*2,true);view.setUint16(34,16,true);
+    ws(36,'data');view.setUint32(40,len*ch*2,true);
+    const channels=[];for(let c=0;c<ch;c++)channels.push(buf.getChannelData(c));
+    let off=44;
+    for(let i=0;i<len;i++) for(let c=0;c<ch;c++){
+        const s=Math.max(-1,Math.min(1,channels[c][i]));
+        view.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
+    }
+    return ab;
+}
+
+})(); // end IIFE
+</script>
+<script>
+// ── Duration slider MM:SS fix ─────────────────────────────────
+(function() {
+    const slider = document.getElementById('duration-slider');
+    const label  = document.getElementById('time-label');
+    if (!slider || !label) return;
+    function toMMSS(secs) {
+        const m = Math.floor(secs / 60);
+        const s = String(secs % 60).padStart(2, '0');
+        return `${String(m).padStart(2,'0')}:${s}`;
+    }
+    slider.addEventListener('input', () => { label.textContent = toMMSS(parseInt(slider.value)); });
+    label.textContent = toMMSS(parseInt(slider.value));
+})();
+
+// Overrides any local string comparison in script.js with a
+// server-side check so letter vs full-text mismatches can't happen
+window.checkQuizAnswer = async function(selected, correct, question) {
+    try {
+        const res  = await fetch('/api/quiz/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selected, correct, question })
+        });
+        const data = await res.json();
+        return data;   // { correct: true/false, message: "..." }
+    } catch(e) {
+        // Fallback: plain comparison if server unreachable
+        const isCorrect = selected.trim().toLowerCase() === correct.trim().toLowerCase();
+        return { correct: isCorrect, message: isCorrect ? '✅ Correct!' : `❌ The answer was: ${correct}` };
+    }
+};
+</script>
+</body>
+</html>

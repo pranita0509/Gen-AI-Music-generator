@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | AI Music Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-container">
+    <div class="login-wrapper">
+        <div class="logo-box">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </div>
+        
+        <div class="card">
+            <div id="step-login">
+                <h2>Welcome to AI Music Studio</h2>
+                <p class="subtitle" id="login-subtitle">Enter your details to continue</p>
+
+                <div class="toggle-nav">
+                    <button class="toggle-item active" id="btn-email">
+                        <i class="fa-regular fa-envelope"></i> Email
+                    </button>
+                    <button class="toggle-item" id="btn-phone">
+                        <i class="fa-solid fa-phone"></i> Phone
+                    </button>
+                </div>
+
+                <input type="text" id="main-input" class="input-field" placeholder="your@email.com">
+                <button class="btn-primary" id="send-code-btn">Send Verification Code</button>
+            </div>
+
+            <div id="step-verify" class="hidden">
+                <h2>Welcome to AI Music Studio</h2>
+                <p class="subtitle">Enter the verification code</p>
+
+                <div class="otp-grid">
+                    <input type="text" maxlength="1" class="otp-box">
+                    <input type="text" maxlength="1" class="otp-box">
+                    <input type="text" maxlength="1" class="otp-box">
+                    <input type="text" maxlength="1" class="otp-box">
+                </div>
+
+                <p class="timer-info">Code expires in <span id="timer-val">60s</span></p>
+                <button id="resend-btn" class="resend-link">Didn't receive a code? Resend</button>
+                <button class="btn-primary" id="verify-btn">Verify & Continue</button>
+                <a href="javascript:void(0)" class="back-link" id="change-link">Change email</a>
+            </div>
+        </div>
+        
+        <p class="footer-legal">
+            By continuing, you agree to our Terms of Service and Privacy Policy
+        </p>
+    </div>
+
+<script src="/static/script.js"></script>
+<script>
+// Intercept send-code response to show welcome back message
+const origFetch = window.fetch;
+window.fetch = async function(...args) {
+    const res = await origFetch(...args);
+    const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+
+    if (url.includes('/api/auth/send-code')) {
+        const clone = res.clone();
+        clone.json().then(data => {
+            const subtitle = document.getElementById('login-subtitle');
+            if (subtitle && data.is_returning) {
+                subtitle.textContent = '👋 Welcome back! Enter your verification code';
+                subtitle.style.color = '#7c3aed';
+                subtitle.style.fontWeight = '600';
+            }
+        }).catch(() => {});
+    }
+    return res;
+};
+</script>
+</body>
+</html>
