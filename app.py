@@ -1,11 +1,7 @@
-import torch, os, time
+import  os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
 from werkzeug.utils import secure_filename
-from audiocraft.data.audio import audio_write
-import torchaudio
-from moviepy.editor import VideoFileClip
-import speech_recognition as sr
 from groq import Groq as _GroqClient
 _groq = _GroqClient(api_key=os.environ.get("GROQ_API_KEY", ""))
 
