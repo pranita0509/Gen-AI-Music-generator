@@ -1,7 +1,6 @@
 import torch, os, time
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
-from audiocraft.models import MusicGen
 from werkzeug.utils import secure_filename
 from audiocraft.data.audio import audio_write
 import torchaudio
