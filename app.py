@@ -41,21 +41,15 @@ def studio():
 
 @app.route('/api/auth/send-code', methods=['POST'])
 def send_code():
-    import random
     identifier = request.json.get('identifier', '')
-    otp = str(random.randint(1000, 9999))
-    upsert_user(identifier, 'User', otp)
-    return jsonify({'success': True, 'otp': otp})
+    upsert_user(identifier, 'User', '1234')
+    session['user_id'] = identifier
+    session['user_name'] = 'User'
+    return jsonify({'success': True})
 
 @app.route('/api/auth/verify', methods=['POST'])
 def verify_code():
-    data = request.json
-    user = verify_otp(data.get('identifier'), data.get('otp'))
-    if user:
-        session['user_id'] = data.get('identifier')
-        session['user_name'] = user['name']
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+    return jsonify({'success': True})
 
 @app.route('/api/auth/logout')
 def logout():
@@ -68,7 +62,7 @@ def generate_music():
     filename = "sample.wav"
     audio_url = url_for('static', filename=filename)
 
-    track_id = save_track(
+    save_track(
         user_id=session['user_id'],
         title="Demo Track",
         artist=session['user_name'],
