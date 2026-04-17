@@ -21,7 +21,14 @@ from database import (init_db, get_user, upsert_user, verify_otp,
                       increment_plays, get_user_stats)
 
 app = Flask(__name__)
-app.secret_key = 'pitti_guru_shahini_studio_2026'
+
+# ── CRITICAL: Session config for Render (HTTPS) ───────────────
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-dev-key-change-this")
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400 * 7   # 7 days
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'          # 'None' breaks on some browsers without proper HTTPS setup
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('RENDER', False)  # True only on Render
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -33,10 +40,14 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
+            # Return JSON error for API routes, redirect for page routes
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Not logged in'}), 401
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated
 
+# ── PAGES ─────────────────────────────────────────────────────
 @app.route('/')
 def home():
     return redirect(url_for('studio')) if 'user_id' in session else render_template('login.html')
@@ -53,31 +64,55 @@ def profile():
                            user_name=session.get('user_name'),
                            user_id=session.get('user_id'))
 
+# ── AUTH ──────────────────────────────────────────────────────
 @app.route('/api/auth/send-code', methods=['POST'])
 def send_code():
     import random
-    identifier = request.json.get('identifier', '')
+    data = request.get_json() or {}
+    identifier = data.get('identifier', '').strip()
+
+    if not identifier:
+        return jsonify({'success': False, 'message': 'Email or phone required'})
+
     otp = str(random.randint(1000, 9999))
     existing = get_user(identifier)
     name = existing['name'] if existing else 'New Artist'
     upsert_user(identifier, name, otp)
-    return jsonify({'success': True, 'dev_otp': otp})
+
+    print(f"[OTP] {identifier} → {otp}")  # visible in Render logs
+    return jsonify({'success': True, 'dev_otp': otp})  # remove dev_otp in production!
 
 @app.route('/api/auth/verify', methods=['POST'])
 def verify_code():
-    data = request.json
-    user = verify_otp(data.get('identifier'), data.get('otp'))
+    data = request.get_json() or {}
+    identifier = data.get('identifier', '').strip()
+    otp = data.get('otp', '').strip()
+
+    if not identifier or not otp:
+        return jsonify({'success': False, 'message': 'Missing identifier or OTP'})
+
+    user = verify_otp(identifier, otp)
     if user:
-        session['user_id'] = data.get('identifier')
+        session.permanent = True
+        session['user_id'] = identifier
         session['user_name'] = user['name']
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+        return jsonify({'success': True, 'name': user['name']})
+
+    return jsonify({'success': False, 'message': 'Invalid OTP. Check Render logs for the code.'})
 
 @app.route('/api/auth/logout')
 def logout():
     session.clear()
     return redirect(url_for('home'))
 
+@app.route('/api/auth/status')
+def auth_status():
+    """Frontend can call this to check if session is still alive."""
+    if 'user_id' in session:
+        return jsonify({'logged_in': True, 'user_id': session['user_id'], 'name': session['user_name']})
+    return jsonify({'logged_in': False})
+
+# ── MUSIC GENERATION (stub — no MusicGen on free Render) ──────
 @app.route('/api/generate-music', methods=['POST'])
 @login_required
 def generate_music():
@@ -96,7 +131,6 @@ def generate_music():
         prompt=prompt,
         duration=duration
     )
-
     return jsonify({
         'success': True,
         'track': {
@@ -109,24 +143,50 @@ def generate_music():
         }
     })
 
+# ── LYRICS ────────────────────────────────────────────────────
 @app.route('/api/generate-lyrics', methods=['POST'])
 @login_required
 def generate_lyrics():
-    data = request.json or {}
-    description = data.get('description', '')
+    data = request.get_json() or {}
+    description = data.get('description', '').strip()
     style = data.get('style', '')
     language = data.get('language', 'English')
 
+    if not description:
+        return jsonify({'success': False, 'message': 'Description is required'})
+
     try:
-        lyrics = groq_call(f"""
-Write song lyrics.
+        lyrics = groq_call(f"""Write song lyrics.
 Description: {description}
 Style: {style}
 Language: {language}
-""")
+Format with [Verse 1], [Chorus], [Verse 2] sections.""")
         return jsonify({'success': True, 'lyrics': lyrics})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+# ── USER API ──────────────────────────────────────────────────
+@app.route('/api/user/tracks')
+@login_required
+def user_tracks():
+    tracks = get_user_tracks(session['user_id'])
+    return jsonify({'success': True, 'tracks': tracks})
+
+@app.route('/api/user/stats')
+@login_required
+def user_stats():
+    stats = get_user_stats(session['user_id'])
+    return jsonify({'success': True, 'stats': stats})
+
+@app.route('/api/gallery')
+def gallery():
+    tracks = get_public_tracks()
+    return jsonify({'success': True, 'tracks': tracks})
+
+@app.route('/api/track/<int:track_id>/play', methods=['POST'])
+def play_track(track_id):
+    increment_plays(track_id)
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True)
