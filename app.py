@@ -1,7 +1,6 @@
 import os, time
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
-from werkzeug.utils import secure_filename
 from groq import Groq as _GroqClient
 
 _groq = _GroqClient(api_key=os.environ.get("GROQ_API_KEY", ""))
@@ -58,6 +57,11 @@ def verify_code():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
+@app.route('/api/auth/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
 @app.route('/api/generate-music', methods=['POST'])
 @login_required
 def generate_music():
@@ -81,15 +85,8 @@ def generate_music():
 def generate_lyrics():
     data = request.json or {}
     description = data.get('description', '')
-
     lyrics = groq_call(f"Write song lyrics about {description}")
-
     return jsonify({'success': True, 'lyrics': lyrics})
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
 
 if __name__ == '__main__':
     app.run(debug=True)
