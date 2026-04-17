@@ -1,5 +1,8 @@
 flask
 gunicorn
 groq
-requests
 werkzeug
+speechrecognition
+pydub
+moviepy
+requests
